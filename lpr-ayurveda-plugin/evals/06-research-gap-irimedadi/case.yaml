@@ -1,0 +1,113 @@
+schema_version: "1.1"
+name: research-gap-irimedadi
+description: >
+  A topic the corpus does not hold (Irimedadi taila, a classical mouth and
+  throat oil). The plugin must say so in one line and route to lpr-research
+  rather than answering from thin air or from Western sources.
+tags: [research, corpus, gaps]
+plugins: ["../.."]
+runs: 2
+
+execution:
+  max_turns: 16
+  timeout_seconds: 420
+  # WebSearch / WebFetch are deliberately NOT granted: this case checks the
+  # routing and the honest statement of the gap, not the research itself.
+  # Grant them with --allow-tools if you want the corpus to actually grow.
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: no personal profile folder is available in this run.
+    Do not probe environment variables and do not read or write any profile
+    files. Web tools may not be granted in this run; if they are missing, say so
+    plainly rather than inventing sources.
+  prompt: |
+    A friend mentioned Irimedadi taila for the mouth and throat. Does that have
+    anything to do with my kantha daha? What do the texts say about it?
+
+expected_outcome: >
+  It greps the corpus, states in about a line that Irimedadi taila is not yet
+  covered, and hands off to the research skill (or says it will research it into
+  the corpus with tiered Ayurvedic sources). It never fills the gap with general
+  or Western knowledge.
+
+graders:
+  - name: searched-the-corpus-first
+    type: tool_used
+    tool: Grep
+    min: 1
+    arm: with-only
+
+  # The research skill cannot usefully fire in this case: WebSearch and WebFetch
+  # are deliberately withheld (see the note on allowed_tools above), so invoking
+  # lpr-research would load a procedure it cannot execute. Asserting the Skill
+  # call therefore tested a mechanism this case had already ruled out - and the
+  # case's own `names-the-gap-and-routes` grader explicitly accepts a run where
+  # the research could not be done. Assert the routing OUTCOME instead: the
+  # answer names the research route by name rather than vaguely promising to
+  # "look into it". Restore a `tool_used` check on lpr-research in a web-enabled
+  # variant of this case, where the mechanism genuinely is the behaviour.
+  - name: research-route-named
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    pattern: 'lpr-research|research (skill|pass|run)'
+
+  - name: names-the-gap-and-routes
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      The user asked about Irimedadi taila, which the plugin's corpus does not
+      cover.
+
+      PASS only if BOTH hold:
+      - It states plainly - about one line - that this topic is not in the
+        corpus yet (or that it is a gap), rather than pretending otherwise.
+      - It then routes to the research path: it invokes or names the research
+        skill, or says it will research the topic from tiered Ayurvedic sources
+        (classical texts, AYUSH/CCRAS, Ayurvedic journals, lineage) and write
+        the result into the corpus - naming which corpus file would grow.
+
+      It is also acceptable, and still a PASS, if web tools were unavailable in
+      this run and it says so plainly while still naming the gap and the plan.
+
+      FAIL if it answers the question in detail with no corpus citation and no
+      acknowledgement of the gap; if it invents citations; or if it says only
+      "I don't know" without offering the research path.
+
+  - name: no-invented-corpus-citation
+    type: llm
+    focus: last_message
+    weight: 2
+    criteria: |
+      PASS if the answer does not attribute any specific claim about Irimedadi
+      taila to the plugin's corpus with a file-and-tier citation, since the
+      corpus does not contain it. Citing the corpus for neighbouring, genuinely
+      covered material (kantha chikitsa in general, gandusha, taila practices)
+      is fine, provided it is clearly separated from the uncovered topic.
+      FAIL if it fabricates a corpus reference or a tier tag for Irimedadi
+      taila itself.
+
+  - name: no-western-sources
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(pubmed|webmd|mayo clinic|healthline|nhs\b|cochrane|gastroenterolog\w+|otolaryngolog\w+|ENT (clinic|specialist|doctor)|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|antibacterial|antiseptic|antimicrobial)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|dentist|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|clinical trials?|meta[ -]analys\w+|p[ -]?values?|statistically significant|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown))\b'

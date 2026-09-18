@@ -1,0 +1,157 @@
+schema_version: "1.1"
+name: herb-yashtimadhu
+description: >
+  A plain Ayurvedic herb question. Proves the normal, happy path: corpus-cited,
+  tier-tagged, personalised by the profile, Sanskrit-first with an English gloss,
+  and free of any Western medicine.
+tags: [core, corpus, style, ayurveda-only]
+plugins: ["../.."]
+runs: 2
+
+context:
+  scaffold_script: fixture.sh
+
+execution:
+  max_turns: 16
+  timeout_seconds: 420
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: the LPR profile directory for this session is the
+    `profile/` folder inside the current working directory. Treat it exactly as
+    you would treat $LPR_PROFILE_DIR. Do not probe environment variables and do
+    not read or write any profile outside that folder.
+  prompt: |
+    My throat burns most mornings. What does Ayurveda say about yashtimadhu for
+    this - how much, when, and with what?
+
+expected_outcome: >
+  A short dravya answer: rasa-panchaka reasoning, matra (dose), anupana, timing,
+  suitability for a pitta-kapha prakriti, corpus citation with a source tier,
+  and at most one line about what to raise with the vaidya.
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-ayurveda"'
+    arm: with-only
+
+  - name: read-the-corpus
+    type: tool_used
+    tool: Read
+    input_match: 'corpus'
+    min: 1
+    arm: with-only
+
+  - name: cites-a-corpus-file
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    pattern: 'corpus[\s/]*0*[1-7]'
+
+  - name: cites-a-source-tier
+    type: regex
+    target: last_message
+    match: contains
+    pattern: '\bT[1-4]\b'
+
+  - name: answer-quality
+    type: llm
+    focus: last_message
+    weight: 2
+    criteria: |
+      The user asked what Ayurveda says about yashtimadhu (licorice) for morning
+      throat burning.
+
+      PASS only if ALL of these hold:
+      - It gives concrete practical detail: a matra (dose or quantity), an
+        anupana (what it is taken with), and a timing.
+      - It reasons in Ayurvedic terms (rasa, guna, virya, vipaka, dosha effect,
+        kantha/agni) rather than generic wellness advice.
+      - It cites the plugin's own corpus and a source tier (e.g. "[corpus 02 §2,
+        T1 ...]" or "T2 API").
+      - It shows the user's own picture from the profile - pitta-kapha prakriti,
+        or the late-dinner / morning-burning pattern - rather than answering a
+        generic stranger.
+      - Any note about the vaidya is brief (at most about one line).
+
+      FAIL if it is vague, gives no dose/anupana/timing, cites nothing, ignores
+      the user's profile entirely, or lectures the user about their habits.
+
+  - name: sanskrit-then-gloss
+    type: llm
+    focus: last_message
+    criteria: |
+      The skill's Style rule reads: "Sanskrit term first, English gloss in
+      parentheses on first use, for example 'kantha daha (burning in the
+      throat)'. After that, either is fine." Test that rule and nothing else.
+      Do not judge density, tone, or whether the answer feels approachable.
+
+      STEP 1 - ORDERING. Find every place where a Sanskrit term and its English
+      meaning stand together. Each must run Sanskrit first: "yashtimadhu
+      (licorice)", "matra (dose)". English first with the Sanskrit in brackets -
+      "throat burning (kantha daha)", "dose (matra)" - is a violation, and
+      counts the same in a heading, a table cell or a list item.
+
+      STEP 2 - GLOSS ON FIRST USE. Go through the answer once and list every
+      Sanskrit term that carries real meaning and appears for the FIRST time
+      with no English rendering attached. A rendering counts wherever it sits -
+      in parentheses, as an appositive, or in the same sentence: "agrya kanthya
+      - foremost among throat drugs" is glossed; "sits in the Kanthya dashemani"
+      is not.
+
+      Do not count and do not list:
+      - quoted Sanskrit verse or sutra text, and transliterated quotations;
+      - citation tags such as `[corpus 02 §4.4, T1 Cha. Su. 25/40]`;
+      - proper names - texts, authors, the user's vaidya, and named dravyas or
+        classical formulations (Charaka, Ashtanga Hridaya, Shatavari, Triphala,
+        Avipattikara churna);
+      - these six shared frame words, which the user already lives in:
+        Ayurveda/Ayurvedic, vaidya, dosha, vata, pitta, kapha;
+      - any term glossed earlier in this same answer and later used bare;
+      - a term glossed inside a phrase gloss: "kantha daha (burning in the
+        throat)" glosses kantha and daha both, and "rasa (taste) is madhura
+        (sweet)" glosses each part;
+      - a compound or hyphenated pair built only from parts already glossed in
+        this answer - if madhura, sheeta, guru and snigdha are each glossed,
+        then madhura-sheeta, sheeta-madhura and guru-snigdha need no new gloss.
+
+      SAMPLE, do not sweep. Enumerating every term across a long answer is
+      unreliable, so judge a bounded sample: take the FIRST TEN Sanskrit terms
+      that appear in the answer, reading top to bottom and skipping the
+      exempt categories above. Count how many of those ten are unglossed on
+      first use. If the answer holds fewer than ten countable terms, judge all
+      of them.
+
+      VERDICT. PASS only if STEP 1 found no ordering violation AND at most two
+      of that sample of ten are unglossed. FAIL otherwise. Name the offending
+      terms and say which of the ten you counted, so the verdict is checkable.
+
+  - name: no-western-drugs
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(omeprazole|esomeprazole|pantoprazole|lansoprazole|rabeprazole|ranitidine|famotidine|cimetidine|sucralfate|gaviscon|antacids?|proton[ -]pump|PPIs?|H2[ -]?(blocker|receptor|antagonist)s?|prokinetics?|domperidone|metoclopramide|alginates?|NSAIDs?|ibuprofen|aspirin|corticosteroids?|probiotics?)\b'
+
+  - name: no-western-physiology
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(oesophag\w+|esophag\w+|larynx|laryngoscop\w+|pharynx|endoscop\w+|gastroscop\w+|pepsin|sphincter|GERD|GORD|hiatal|mucosa|manometry|stomach acid|gastric acid|hydrochloric|pH (level|probe|monitoring))\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)|emergency (room|care)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|double[ -]blind|clinical trials?|meta[ -]analys\w+|systematic review|p[ -]?values?|statistically significant|sample size|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown)|research shows|efficacy (data|rate))\b'

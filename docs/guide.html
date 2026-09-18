@@ -1,0 +1,810 @@
+<title>LPR Ayurveda Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gentium+Book+Plus:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    /* light: pale green-grey leaf, lampblack ink, neem accent, madder rubric */
+    --ground:      #F3F5F1;
+    --surface:     #FBFCFA;
+    --surface-sunk:#EAEEE6;
+    --ink:         #16211B;
+    --ink-soft:    #4A574F;
+    --ink-faint:   #77837B;
+    --rule:        #D3DACD;
+    --rule-strong: #B6C0AE;
+    --accent:      #35654C;
+    --accent-soft: #E0EBE2;
+    --rubric:      #8E3F33;
+    --rubric-soft: #F4E3DF;
+    --shadow:      0 1px 2px rgba(22,33,27,.05), 0 8px 24px -16px rgba(22,33,27,.28);
+
+    --display: "Gentium Book Plus", "Iowan Old Style", Palatino, Georgia, serif;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0F1512;
+      --surface:     #161E19;
+      --surface-sunk:#0A0F0C;
+      --ink:         #E2E8DF;
+      --ink-soft:    #A9B5AC;
+      --ink-faint:   #7C8880;
+      --rule:        #27322B;
+      --rule-strong: #3A4740;
+      --accent:      #82B598;
+      --accent-soft: #1B2A21;
+      --rubric:      #D98E80;
+      --rubric-soft: #2C1C19;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #0F1512;
+    --surface:     #161E19;
+    --surface-sunk:#0A0F0C;
+    --ink:         #E2E8DF;
+    --ink-soft:    #A9B5AC;
+    --ink-faint:   #7C8880;
+    --rule:        #27322B;
+    --rule-strong: #3A4740;
+    --accent:      #82B598;
+    --accent-soft: #1B2A21;
+    --rubric:      #D98E80;
+    --rubric-soft: #2C1C19;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--display);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 0 72px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0 56px;
+  }
+  @media (min-width: 940px) {
+    .shell { grid-template-columns: 196px minmax(0, 1fr); }
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    grid-column: 1 / -1;
+    padding-block: 56px 32px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(2.3rem, 6vw, 3.4rem);
+    line-height: 1.06;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 6px;
+  }
+  .sanskrit {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+    margin: 0 0 20px;
+  }
+  .standfirst {
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 1.08rem;
+    margin: 0 0 28px;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 700; }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .facts b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- side nav ---------- */
+  .sidenav { display: none; }
+  @media (min-width: 940px) {
+    .sidenav {
+      display: block;
+      position: sticky;
+      top: calc(env(safe-area-inset-top, 0px) + 28px);
+      align-self: start;
+      padding-top: 40px;
+      font-family: var(--sans);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .sidenav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+    .sidenav a {
+      color: var(--ink-faint);
+      text-decoration: none;
+      display: block;
+      border-left: 2px solid var(--rule);
+      padding-left: 12px;
+    }
+    .sidenav a:hover { color: var(--accent); border-left-color: var(--accent); }
+  }
+
+  /* ---------- sections ---------- */
+  main { min-width: 0; padding-top: 40px; display: grid; gap: 52px; }
+  section { scroll-margin-top: 24px; }
+
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 6px;
+  }
+  .lede { color: var(--ink-soft); max-width: 64ch; margin: 0 0 22px; }
+  p { max-width: 64ch; }
+  h3 {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 12px;
+  }
+  a { color: var(--accent); }
+
+  /* ---------- the one action ---------- */
+  .start {
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: 26px 26px 24px;
+    box-shadow: var(--shadow);
+  }
+  .start h2 { margin-bottom: 10px; }
+
+  /* ---------- command chip ---------- */
+  .cmd {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 9px 10px 9px 13px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    overflow-x: auto;
+  }
+  .cmd code { white-space: nowrap; color: var(--ink); }
+  .copy {
+    margin-left: auto;
+    flex: none;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    border-radius: 2px;
+    padding: 4px 9px;
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--accent); border-color: var(--accent); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .copy[data-done="1"] { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- command list ---------- */
+  .commands { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+  .command {
+    display: grid;
+    gap: 6px 26px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  @media (min-width: 680px) {
+    .command { grid-template-columns: 260px minmax(0, 1fr); align-items: start; }
+  }
+  .command .name {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--ink);
+    word-break: break-word;
+  }
+  .command .what { margin: 0; color: var(--ink-soft); font-size: .97rem; }
+  .command .what b { color: var(--ink); font-weight: 700; }
+
+  /* ---------- two-up ---------- */
+  .duo { display: grid; gap: 18px; }
+  @media (min-width: 680px) { .duo { grid-template-columns: 1fr 1fr; } }
+  .panel {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 20px 20px 18px;
+    background: var(--surface);
+  }
+  .panel p { margin: 0; color: var(--ink-soft); font-size: .96rem; }
+  .panel .when {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .panel h4 { font-size: 1.12rem; margin: 0 0 8px; font-weight: 700; }
+
+  /* ---------- corpus list ---------- */
+  .corpus { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+  .vol {
+    display: grid;
+    gap: 3px 22px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+  }
+  @media (min-width: 680px) {
+    .vol { grid-template-columns: 34px 220px minmax(0, 1fr) 62px; }
+  }
+  .vol .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .vol .topic { font-weight: 700; }
+  .vol .desc { color: var(--ink-soft); font-size: .95rem; }
+  .vol .len {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 680px) { .vol .len { text-align: right; } }
+
+  /* ---------- sigla ---------- */
+  .sigla { display: grid; gap: 10px; margin: 0; }
+  .siglum { display: flex; gap: 12px; align-items: baseline; }
+  .tag {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 2px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid transparent;
+  }
+  .tag.warn { background: var(--rubric-soft); color: var(--rubric); }
+  .siglum span { color: var(--ink-soft); font-size: .95rem; }
+
+  /* ---------- rubric (vaidya / safety) ---------- */
+  .rubric {
+    border-left: 3px solid var(--rubric);
+    background: var(--rubric-soft);
+    padding: 18px 20px;
+    border-radius: 0 3px 3px 0;
+  }
+  .rubric h3 { color: var(--rubric); margin-bottom: 8px; }
+  .rubric p { margin: 0; color: var(--ink); }
+  .rubric p + p { margin-top: 10px; }
+
+  /* ---------- never / always ---------- */
+  .rules { display: grid; gap: 16px; }
+  @media (min-width: 760px) { .rules { grid-template-columns: 1fr 1fr; } }
+  .rule-col h3 { margin-bottom: 14px; }
+  .rule-col ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 11px; }
+  .rule-col li {
+    padding-left: 20px;
+    position: relative;
+    color: var(--ink-soft);
+    font-size: .97rem;
+  }
+  .rule-col li::before {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .no li::before { content: "\00D7"; color: var(--rubric); }
+  .yes li::before { content: "\2713"; color: var(--accent); }
+
+  /* ---------- files ---------- */
+  .tree {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.85;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 18px;
+    overflow-x: auto;
+    margin: 0;
+    white-space: pre;
+    color: var(--ink-soft);
+  }
+  .tree b { color: var(--ink); font-weight: 500; }
+  .tree i { color: var(--ink-faint); font-style: normal; }
+
+  /* ---------- upkeep ---------- */
+  .upkeep { display: grid; gap: 22px; }
+  .upkeep .item { display: grid; gap: 9px; }
+  .upkeep p { margin: 0; color: var(--ink-soft); font-size: .97rem; }
+
+  /* ---------- limits ---------- */
+  .limits { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+  .limits li {
+    border-left: 2px solid var(--rule-strong);
+    padding-left: 16px;
+    color: var(--ink-soft);
+    font-size: .97rem;
+  }
+  .limits b { color: var(--ink); font-weight: 700; display: block; }
+
+  footer {
+    grid-column: 1 / -1;
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule-strong);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 26px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="shell">
+
+  <header class="masthead">
+    <p class="eyebrow">Claude Code plugin &middot; lpr-ayurveda 0.1.4</p>
+    <h1>LPR Ayurveda Companion</h1>
+    <p class="sanskrit">Ūrdhvaga Amlapitta &mdash; sour-pitta moving upward, into the kaṇṭha</p>
+    <p class="standfirst">
+      A companion for silent reflux that works <strong>entirely inside Ayurveda</strong>. It answers
+      from a cited corpus, keeps your daily record, and arrives at your vaidya&rsquo;s door with the
+      questions already sorted. No Western medicine enters the corpus, the answers, or the journal.
+    </p>
+    <ul class="facts">
+      <li>Corpus<b>7 files</b></li>
+      <li>Validated lines<b>4,896</b></li>
+      <li>Skills<b>5</b></li>
+      <li>Behaviour tests<b>13</b></li>
+      <li>Check-in<b>daily 07:30</b></li>
+    </ul>
+  </header>
+
+  <nav class="sidenav" aria-label="Sections">
+    <ol>
+      <li><a href="#start">Start here</a></li>
+      <li><a href="#commands">Commands</a></li>
+      <li><a href="#rhythm">Daily rhythm</a></li>
+      <li><a href="#knows">What it knows</a></li>
+      <li><a href="#sigla">Reading the tags</a></li>
+      <li><a href="#rule">The one rule</a></li>
+      <li><a href="#vaidya">Your vaidya</a></li>
+      <li><a href="#files">Your files</a></li>
+      <li><a href="#upkeep">Upkeep</a></li>
+      <li><a href="#limits">Known limits</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="start" class="start">
+      <h2>Start here</h2>
+      <p class="lede">
+        Until the companion knows your constitution, your digestive fire, and what your vaidya has
+        already prescribed, it can only give you the tradition&rsquo;s general answer rather than
+        yours. The intake takes about fifteen minutes and can be stopped after any part.
+      </p>
+      <div class="cmd">
+        <code>/lpr-ayurveda:lpr-intake</code>
+        <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-intake">Copy</button>
+      </div>
+      <p style="margin:18px 0 0;color:var(--ink-soft);font-size:.96rem;">
+        Too long for today? Answer the five questions already waiting in
+        <code style="font-family:var(--mono);font-size:12.5px;">profile\journal\</code> instead. The
+        scheduled task writes them each morning whether or not you open Claude Code.
+      </p>
+    </section>
+
+    <section id="commands">
+      <h2>Commands</h2>
+      <p class="lede">
+        You rarely need these. Any mention of reflux, throat, acid, digestion, herbs, diet, routine,
+        or your vaidya pulls the companion in on its own. Type a command when you want a specific
+        job done now.
+      </p>
+      <div class="commands">
+        <div class="command">
+          <div class="name">
+            <div class="cmd">
+              <code>lpr-intake</code>
+              <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-intake">Copy</button>
+            </div>
+          </div>
+          <p class="what"><b>Builds your profile.</b> Constitution questionnaire, a graded baseline of
+            your symptoms, digestive fire and bowel tendency, your vaidya&rsquo;s current plan, and
+            everything you have already tried.</p>
+        </div>
+        <div class="command">
+          <div class="name">
+            <div class="cmd">
+              <code>lpr-checkin</code>
+              <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-checkin">Copy</button>
+            </div>
+          </div>
+          <p class="what"><b>Today&rsquo;s three to five questions.</b> Always one about the throat and
+            one about digestion or undigested residue, rotating through diet, routine, mind, and
+            suppressed urges. Writes the journal entry, then reads the day back to you in a few lines.</p>
+        </div>
+        <div class="command">
+          <div class="name">
+            <div class="cmd">
+              <code>lpr-vaidya-prep prep</code>
+              <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-vaidya-prep prep">Copy</button>
+            </div>
+          </div>
+          <p class="what"><b>One page for your next visit.</b> Symptom trends since you last went,
+            how well you kept to the plan, and up to seven prioritised questions. Readable in two
+            minutes, because that may be all the time there is.</p>
+        </div>
+        <div class="command">
+          <div class="name">
+            <div class="cmd">
+              <code>lpr-vaidya-prep after</code>
+              <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-vaidya-prep after">Copy</button>
+            </div>
+          </div>
+          <p class="what"><b>Records what was said.</b> Updates the plan with new prescriptions, doses,
+            vehicles and timings, moves answered questions out of the open list, and notes what you
+            were asked to watch.</p>
+        </div>
+        <div class="command">
+          <div class="name">
+            <div class="cmd">
+              <code>lpr-research &lt;topic&gt;</code>
+              <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-research ">Copy</button>
+            </div>
+          </div>
+          <p class="what"><b>Grows the corpus.</b> Searches Ayurvedic sources only, wants two
+            independent sources per claim, and writes the finding in with its citation. If it cannot
+            reach the sources it says so rather than inventing them.</p>
+        </div>
+        <div class="command">
+          <div class="name">
+            <div class="cmd">
+              <code>lpr-ayurveda &lt;question&gt;</code>
+              <button class="copy" type="button" data-copy="/lpr-ayurveda:lpr-ayurveda ">Copy</button>
+            </div>
+          </div>
+          <p class="what"><b>Ask directly.</b> For when it did not trigger on its own, or you want the
+            corpus consulted explicitly.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="rhythm">
+      <h2>The daily rhythm</h2>
+      <p class="lede">
+        Two prompts, deliberately overlapping, so a day is only missed if you want it missed. Neither
+        asks twice.
+      </p>
+      <div class="duo">
+        <div class="panel">
+          <h4>The scheduled task</h4>
+          <span class="when">every morning, 07:30</span>
+          <p>A Windows task writes the day&rsquo;s questions into your journal and shows a
+            notification. It runs whether or not you open Claude Code, and catches up if the machine
+            was asleep. Answer in the file, or run the check-in and it picks them up.</p>
+        </div>
+        <div class="panel">
+          <h4>The session prompt</h4>
+          <span class="when">when you open Claude Code</span>
+          <p>If nothing is recorded for today, it offers the check-in in a single sentence before
+            anything else. Decline and it stays quiet until tomorrow. It never nags, and it never
+            speaks up once the day is answered.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="knows">
+      <h2>What it knows</h2>
+      <p class="lede">
+        Seven volumes, each written by one research pass and then audited against the original
+        Sanskrit by a second. That audit corrected around a hundred citations, removed a passage that
+        had been attributed to a text that does not contain it, and marked what could not be
+        confirmed instead of quietly keeping it.
+      </p>
+      <div class="corpus">
+        <div class="vol">
+          <span class="num">01</span>
+          <span class="topic">Nidāna &amp; samprāpti</span>
+          <span class="desc">What the disease is, its causes, how each sign maps to the throat, and how it differs from neighbouring conditions</span>
+          <span class="len">664</span>
+        </div>
+        <div class="vol">
+          <span class="num">02</span>
+          <span class="topic">Chikitsā &amp; auṣadha</span>
+          <span class="desc">Treatment principles, single herbs with dose and vehicle, classical formulations, throat-specific therapy, cleansing procedures</span>
+          <span class="len">643</span>
+        </div>
+        <div class="vol">
+          <span class="num">03</span>
+          <span class="topic">Āhāra: pathya &amp; apathya</span>
+          <span class="desc">What to eat and avoid, the taste and quality logic behind it, how to eat, quantity, timing, incompatible combinations</span>
+          <span class="len">664</span>
+        </div>
+        <div class="vol">
+          <span class="num">04</span>
+          <span class="topic">Vihāra &amp; dinacharyā</span>
+          <span class="desc">Daily routine hour by hour, the natural urges, voice care, yoga with its cautions, the mind, season and climate</span>
+          <span class="len">634</span>
+        </div>
+        <div class="vol">
+          <span class="num">05</span>
+          <span class="topic">Institutional record</span>
+          <span class="desc">Government and council guidance, pharmacopoeia entries, and forty-six Ayurvedic case reports with what was given and for how long</span>
+          <span class="len">610</span>
+        </div>
+        <div class="vol">
+          <span class="num">06</span>
+          <span class="topic">Lineage &amp; home practice</span>
+          <span class="desc">How named vaidyas explain it, thirty-four home preparations with quantity and timing, Kerala approaches, signs of progress</span>
+          <span class="len">733</span>
+        </div>
+        <div class="vol">
+          <span class="num">07</span>
+          <span class="topic">Parīkṣā &amp; tracking</span>
+          <span class="desc">The constitution questionnaire, the graded symptom scale, the ninety-field daily log, and eighty-seven rotating questions</span>
+          <span class="len">869</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="sigla">
+      <h2>Reading the tags</h2>
+      <p class="lede">
+        Every claim carries where it came from and how well it stands up, so you can trace anything
+        back or discount it. When texts conflict, the older authority wins.
+      </p>
+      <div class="duo">
+        <div>
+          <h3>Where it came from</h3>
+          <div class="sigla">
+            <div class="siglum"><span class="tag">T1</span><span>Classical texts &mdash; Charaka, Suśruta, Aṣṭāṅga Hṛdaya, Mādhava Nidāna, Kāśyapa and the rest</span></div>
+            <div class="siglum"><span class="tag">T2</span><span>Ayurvedic institutions &mdash; the ministry, the research council, the pharmacopoeia</span></div>
+            <div class="siglum"><span class="tag">T3</span><span>Ayurvedic journals, read only for their Ayurvedic reasoning</span></div>
+            <div class="siglum"><span class="tag">T4</span><span>Practitioner and lineage teaching &mdash; the Kerala tradition, named vaidyas</span></div>
+          </div>
+        </div>
+        <div>
+          <h3>How well it stands up</h3>
+          <div class="sigla">
+            <div class="siglum"><span class="tag">verified &times;2</span><span>Two independent sources agree</span></div>
+            <div class="siglum"><span class="tag">single-source</span><span>Only one source carries it</span></div>
+            <div class="siglum"><span class="tag warn">variant</span><span>The sources genuinely disagree; both are given</span></div>
+            <div class="siglum"><span class="tag warn">unverified</span><span>Kept, but could not be confirmed &mdash; treat as weaker than its neighbours</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="rule">
+      <h2>The one rule it will not break</h2>
+      <p class="lede">
+        Thirteen behaviour tests run against this plugin. Across every run, no Western drug, no
+        Western physiology, no trial statistics and no medical disclaimer appeared in any answer.
+      </p>
+      <div class="rules">
+        <div class="rule-col no">
+          <h3>Never</h3>
+          <ul>
+            <li>Names a drug, a drug class, or weighs one against another</li>
+            <li>Explains your body in Western physiological terms</li>
+            <li>Quotes patient counts, sample sizes, or outcome measures &mdash; a claim&rsquo;s weight is its tier and its text, never a tally</li>
+            <li>Tells you to consult a doctor, or anyone at all except your vaidya</li>
+            <li>Lectures you, restates a warning, or reopens a habit you have fenced off</li>
+          </ul>
+        </div>
+        <div class="rule-col yes">
+          <h3>Instead</h3>
+          <ul>
+            <li>Sets the frame aside in one sentence, without apology or argument</li>
+            <li>Answers the nearest Ayurvedic question, cited to the corpus and its tier</li>
+            <li>Gives the classical source, the reasoning in taste and quality terms, and the practical dose, vehicle and timing</li>
+            <li>Leads with the Sanskrit and explains each term the first time it appears</li>
+            <li>States the tradition&rsquo;s position once, offers the alternative, and stops</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="vaidya">
+      <h2>Your vaidya keeps the last word</h2>
+      <div class="rubric">
+        <h3>Reserved for the physician</h3>
+        <p>
+          Mineral and metallic preparations, calcined medicines, and the five cleansing procedures are
+          handed to the vaidya by the tradition itself. The companion will not help you start, stop, or
+          adjust any of them, and will not confirm a dose you propose for yourself. It says
+          <em>discuss with your vaidya</em>, and writes the point into your open questions.
+        </p>
+        <p>
+          Where the corpus and your vaidya&rsquo;s plan disagree, <strong>the plan wins</strong>. The
+          companion follows it without hedging or quietly trialling something else, and logs the
+          difference so you can raise it at the next visit rather than decide alone.
+        </p>
+      </div>
+    </section>
+
+    <section id="files">
+      <h2>Your files</h2>
+      <p class="lede">
+        Your records sit outside the plugin, so updating one never touches the other. Every file is
+        plain Markdown and yours to edit by hand; keep the headings so the skills can find their
+        sections.
+      </p>
+      <pre class="tree"><b>C:\temp\lpr\</b>
+ ├─ <b>lpr-ayurveda-plugin\</b>   <i>the plugin — corpus, skills, hook, scripts, tests</i>
+ └─ <b>profile\</b>               <i>yours, never shipped with the plugin</i>
+     ├─ profile.md            <i>who you are, and the baseline you started from</i>
+     ├─ prakriti.md           <i>constitution, with the evidence behind the guess</i>
+     ├─ vaidya-plan.md        <i>current prescriptions and instructions — authoritative</i>
+     ├─ remedies-log.md       <i>everything tried, dated, with its effect</i>
+     ├─ observations.md       <i>durable facts: triggers, relief, patterns</i>
+     ├─ questions-for-vaidya.md  <i>open questions; answered ones move down</i>
+     ├─ journal\              <i>one file per day</i>
+     └─ vaidya-visits\        <i>one page per visit</i></pre>
+      <p style="margin-top:18px;color:var(--ink-soft);font-size:.96rem;">
+        To move this folder, set an <code style="font-family:var(--mono);font-size:12.5px;">LPR_PROFILE_DIR</code>
+        environment variable to the new path, then re-run the scheduler installer so the morning task
+        follows it too.
+      </p>
+    </section>
+
+    <section id="upkeep">
+      <h2>Upkeep</h2>
+      <div class="upkeep">
+        <div class="item">
+          <h3>After editing plugin files</h3>
+          <p>Installing copies the plugin into a cache, so editing the source folder changes nothing
+            on its own. Bump the version in both manifests, then:</p>
+          <div class="cmd">
+            <code>claude plugin marketplace update lpr-local &amp;&amp; claude plugin update lpr-ayurveda</code>
+            <button class="copy" type="button" data-copy="claude plugin marketplace update lpr-local && claude plugin update lpr-ayurveda">Copy</button>
+          </div>
+        </div>
+        <div class="item">
+          <h3>Change the morning time</h3>
+          <p>Re-register the task at whatever hour suits you. The uninstaller beside it removes the
+            task entirely.</p>
+          <div class="cmd">
+            <code>powershell -NoProfile -ExecutionPolicy Bypass -File .\lpr-ayurveda-plugin\scripts\install-scheduler.ps1 -At "08:00"</code>
+            <button class="copy" type="button" data-copy='powershell -NoProfile -ExecutionPolicy Bypass -File .\lpr-ayurveda-plugin\scripts\install-scheduler.ps1 -At "08:00"'>Copy</button>
+          </div>
+        </div>
+        <div class="item">
+          <h3>Re-check the behaviour</h3>
+          <p>Worth running after any change to a skill. A full pass costs real money, so run a single
+            case by name while iterating. Git bash must come before the Windows one on your path.</p>
+          <div class="cmd">
+            <code>claude plugin eval .\lpr-ayurveda-plugin --scaffold --allow-tools Write Edit --trust-plugin</code>
+            <button class="copy" type="button" data-copy="claude plugin eval .\lpr-ayurveda-plugin --scaffold --allow-tools Write Edit --trust-plugin">Copy</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <p class="lede">Stated plainly, because a companion that hides its gaps is worse than one that has them.</p>
+      <ul class="limits">
+        <li>
+          <b>The national terminology codes are unverified.</b>
+          Three separate routes failed to retrieve the official Ayurvedic morbidity codes, so they
+          remain marked unverified rather than guessed. If your vaidya uses them, close that gap with
+          them directly.
+        </li>
+        <li>
+          <b>Some classical verses are cited through reviews, not originals.</b>
+          A handful of texts could not be reached in the original and are cited through Ayurvedic
+          journals that quote them. Each is tagged, so you can see which.
+        </li>
+        <li>
+          <b>One behaviour test is unreliable.</b>
+          The check on Sanskrit glossing fails even when the answer satisfies the rule. It is
+          documented as flaky rather than quietly removed, with a note on how to fix it properly.
+        </li>
+        <li>
+          <b>Head elevation has no classical basis.</b>
+          An early answer suggested it. It appears in no classical source, and the corpus now says so
+          rather than dressing it up as tradition.
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <span>lpr-ayurveda 0.1.4</span>
+    <span>Corpus validated 18 September 2026</span>
+    <span>Escalation phrase: discuss with your vaidya</span>
+  </footer>
+
+</div>
+
+<script>
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest(".copy");
+    if (!btn) return;
+    var text = btn.getAttribute("data-copy") || "";
+    var done = function () {
+      var original = btn.textContent;
+      btn.textContent = "Copied";
+      btn.setAttribute("data-done", "1");
+      setTimeout(function () {
+        btn.textContent = original;
+        btn.removeAttribute("data-done");
+      }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {});
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (err) {}
+      document.body.removeChild(ta);
+    }
+  });
+</script>

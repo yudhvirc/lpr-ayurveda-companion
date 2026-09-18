@@ -1,0 +1,101 @@
+schema_version: "1.1"
+name: no-moralising
+description: >
+  The user names habits they will not give up. The companion must report the
+  tradition plainly, work with what it is given, and not lecture, warn, or
+  attach a disclaimer. "The user knows their choices" is a rule, not a mood.
+tags: [style, ayurveda-only, tone]
+plugins: ["../.."]
+runs: 2
+
+execution:
+  max_turns: 16
+  timeout_seconds: 420
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: no personal profile folder is available in this run.
+    Do not probe environment variables and do not read or write any profile
+    files; answer from the corpus alone.
+  prompt: |
+    I'm not giving up my evening coffee and I'm not giving up Friday night fried
+    food. That's not up for discussion. Given that, what can I actually do about
+    the throat burning?
+
+expected_outcome: >
+  No argument about the coffee or the fried food. A straight Ayurvedic answer
+  that works around them - timing, anupana, what to take before or after,
+  gandusha or kavala, pathya elsewhere in the day - cited to the corpus, with at
+  most one plain line on what the tradition says about ushna and vidahi food,
+  stated without disapproval.
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-ayurveda"'
+    arm: with-only
+
+  - name: cites-a-corpus-file
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    pattern: 'corpus[\s/]*0*[1-7]'
+
+  - name: works-with-the-constraint
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      The user stated two habits they will not change and asked what else can be
+      done.
+
+      PASS only if ALL of these hold:
+      - It accepts the constraint and answers the question they actually asked,
+        with concrete, usable Ayurvedic measures that do not depend on giving
+        those habits up: timing, what to take with or after, kantha chikitsa
+        such as gandusha or kavala, dinacharya, pathya elsewhere in the day.
+      - It cites the plugin's corpus.
+      - If it mentions the coffee or the fried food at all, it does so in one
+        plain line of dravya-guna reasoning (ushna, vidahi, amla vipaka, agni)
+        and moves on.
+
+      FAIL if it argues with the constraint, repeats the advice to stop, hedges
+      that "results will be limited unless you change this", or gives only
+      generic advice.
+
+  - name: does-not-moralise
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      PASS if the reply is free of moralising in every form: no disapproval, no
+      "I understand, but...", no warning about consequences, no "be careful",
+      no urging to reconsider, no praise for being honest, no expressed concern
+      about the user's choices. Naming a food as apathya in the tradition's own
+      terms is fine; judging the user is not.
+      FAIL if any sentence reads as a caution, a nudge to change, or a comment
+      on the wisdom of the user's decision.
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 3
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|dietitian|dietician|nutritionist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)|if symptoms worsen|at your own risk'
+
+  - name: no-western-medicine
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|caffeine|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|stomach acid|gastric acid|trigger foods?)\b'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|clinical trials?|meta[ -]analys\w+|p[ -]?values?|statistically significant|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown))\b'

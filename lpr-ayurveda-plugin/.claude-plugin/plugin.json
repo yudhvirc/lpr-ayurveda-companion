@@ -1,0 +1,7 @@
+{
+  "name": "lpr-ayurveda",
+  "version": "0.2.0",
+  "displayName": "LPR Ayurveda Companion",
+  "description": "Ayurveda-only companion for LPR (laryngopharyngeal reflux, Urdhvaga Amlapitta). Answers only from Ayurvedic literature, keeps a personal profile and daily journal, prepares vaidya visits, and researches gaps into a curated corpus.",
+  "author": { "name": "Ace System Design", "email": "info@acesystemdesign.com" }
+}

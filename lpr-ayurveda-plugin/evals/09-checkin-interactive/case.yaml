@@ -1,0 +1,125 @@
+schema_version: "1.1"
+name: checkin-interactive
+description: >
+  The conversational check-in. Proves the questions the user actually sees:
+  3 to 5 of them, in one message, numbered, with scales, always one kantha
+  question and one agni-or-ama question, and nothing Western in sight.
+tags: [checkin, style, ayurveda-only]
+plugins: ["../.."]
+runs: 2
+
+context:
+  scaffold_script: fixture.sh
+
+execution:
+  max_turns: 16
+  timeout_seconds: 420
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: the LPR profile directory for this session is the
+    `profile/` folder inside the current working directory. Treat it exactly as
+    you would treat $LPR_PROFILE_DIR. Do not probe environment variables and do
+    not read or write any profile outside that folder. The user is present and
+    will answer your questions in their next turn.
+  prompt: |
+    Let's do today's check-in.
+
+expected_outcome: >
+  One short message with 3 to 5 numbered questions, each with its scale in
+  brackets, including a kantha question and an agni-or-ama question, informed by
+  the last few journal days (late dinners, thick coating) and the vaidya plan.
+
+graders:
+  - name: checkin-skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-checkin"'
+    arm: with-only
+
+  - name: read-recent-journal
+    type: tool_used
+    tool: Read
+    input_match: 'journal'
+    min: 1
+    arm: with-only
+
+  - name: questions-are-numbered
+    type: regex
+    target: last_message
+    match: contains
+    pattern: '(?:^|\n)\s*3[\.\)]\s'
+
+  - name: scales-are-given
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    pattern: '\[\s*(0\s*-\s*3|0\s*none|yes\s*/|none\s*/)'
+
+  - name: kantha-question
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    weight: 2
+    pattern: '(kantha|throat (burning|clearing)|hoarse|swarabheda|gala graha|globus|praseka)'
+
+  - name: agni-or-ama-question
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    weight: 2
+    # Widened: a check-in that asks "Gaurava after meals - heaviness or
+    # sleepiness in the hour after eating [0-3]" is an agni/ama question, and
+    # the LLM grader in this same case judged it one, but the old pattern
+    # required the literal words "heaviness after". Terms, not phrasing.
+    pattern: '(agni|\bama\b|kshudha|hunger|tongue coating|gaurava|heaviness|udgara|belch)'
+
+  - name: three-to-five-in-one-message
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      PASS only if ALL of these hold:
+      - The message asks between 3 and 5 questions - not 2, not 6 or more.
+      - They are all in this one message, numbered, each with its answer scale
+        or allowed values in brackets.
+      - At least one is a kantha (throat) question and at least one is an agni
+        or ama question.
+      - The message is short and kind: no lecture, no advice paragraph before
+        the questions, no warnings.
+      - It draws on the user's recent journal or vaidya plan where that is
+        natural (for example following up on the run of late dinners or the
+        thick tongue coating), rather than reading as a generic form.
+
+      FAIL on any question count outside 3-5, on questions split across several
+      messages, on a missing kantha or agni/ama question, or on a question that
+      ends with no bracketed answer format at all. A bracket that gives allowed
+      values rather than a 0-3 scale is correct and passes: "[number of hours]",
+      "[all / some / none]" and "[none / thin white / thick white / yellow]" are
+      all proper answer formats. One short orienting sentence before the list is
+      allowed; a paragraph of advice is not.
+
+  - name: no-western-terms
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 3
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|stomach acid|gastric acid|reflux symptom index|heartburn score|symptom severity scale)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|clinical trials?|meta[ -]analys\w+|p[ -]?values?|statistically significant|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown))\b'

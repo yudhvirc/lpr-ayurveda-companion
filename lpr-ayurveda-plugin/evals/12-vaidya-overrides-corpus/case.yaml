@@ -1,0 +1,133 @@
+schema_version: "1.1"
+name: vaidya-overrides-corpus
+description: >
+  The vaidya's plan and the corpus disagree. The vaidya wins. The difference is
+  named honestly and parked as a question for the next visit - it is never
+  resolved by telling the user to ignore their vaidya.
+tags: [vaidya, profile, conflict, core]
+plugins: ["../.."]
+runs: 3
+
+context:
+  scaffold_script: fixture.sh
+
+execution:
+  max_turns: 20
+  timeout_seconds: 480
+  allowed_tools: [Read, Glob, Grep, Skill, Edit, Write]
+  append_system_prompt: >-
+    Evaluation environment: the LPR profile directory for this session is the
+    `profile/` folder inside the current working directory. Treat it exactly as
+    you would treat $LPR_PROFILE_DIR. Do not probe environment variables and do
+    not read or write any profile outside that folder.
+  prompt: |
+    I was reading your corpus and it lists tomato as apathya. But Vaidya S. told
+    me at my last visit that cooked tomato in small quantity at lunch is fine for
+    me, and it's written into my plan. Which one do I follow?
+
+expected_outcome: >
+  Follow the vaidya. The corpus position is stated plainly (tomato: amla rasa,
+  ushna virya, amla vipaka, T4 single-source), the vaidya's instruction is
+  treated as authoritative and not second-guessed, and the difference is added
+  to questions-for-vaidya.md for the next visit.
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-ayurveda"'
+    arm: with-only
+
+  - name: reads-the-vaidya-plan
+    type: tool_used
+    tool: Read
+    input_match: 'vaidya-plan'
+    min: 1
+    arm: with-only
+
+  - name: vaidya-wins
+    type: llm
+    focus: last_message
+    weight: 4
+    criteria: |
+      The plugin's corpus lists tomato as apathya (to be avoided). The user's
+      vaidya has written into their plan that a small quantity of cooked tomato
+      at lunch is fine for them.
+
+      PASS only if ALL of these hold:
+      - It answers the question directly: follow the vaidya.
+      - It treats the vaidya's instruction as authoritative and does not
+        second-guess it, does not hedge about which is "really" right, and does
+        not suggest reducing, trialling or dropping the tomato on the corpus's
+        say-so.
+      - It still states the corpus position honestly - why tomato sits on the
+        apathya list in dravya-guna terms - and, ideally, notes how strong that
+        source is (a single T4 source, non-classical).
+      - It parks the difference as something to raise at the next visit rather
+        than resolving it itself.
+      - It does not imply the vaidya is mistaken or that the user should get a
+        second opinion.
+
+      FAIL if it tells the user to avoid the tomato, if it leaves the choice
+      hanging with no answer, or if it questions the vaidya's competence.
+
+  - name: difference-logged-for-the-vaidya
+    type: regex
+    weight: 2
+    match: contains
+    flags: i
+    pattern: 'tomato'
+    target:
+      source: file
+      path: profile/questions-for-vaidya.md
+
+  - name: escalation-phrase-if-any
+    type: llm
+    focus: last_message
+    criteria: |
+      This grader judges ONE thing: who, if anyone, the reply sends the user to.
+      Ignore everything else about the answer, including whether it logged a
+      question - a separate grader in this case covers that.
+
+      PASS if the reply sends the user to nobody at all, or sends them only to
+      their vaidya - by the word "vaidya" or by their vaidya's name. No
+      particular wording is required here: "discuss with your vaidya", "follow
+      Vaidya S.", "bring it up at the 2 October visit", or simply logging the
+      point for the vaidya all pass, and so does a reply that names no one to
+      consult and decides nothing needs asking.
+
+      FAIL only if the reply points the user to some person or authority other
+      than their vaidya: a doctor, dietitian, nutritionist, another
+      practitioner, a second opinion, or any unnamed stand-in such as "a
+      professional" or "whoever advises you on food".
+
+  - name: no-western-nutrition
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(acidic food|acidity level|pH (level|balance)|alkaline|trigger foods?|lycopene|citric acid|nutrients?|nutrition(al)?|calorie\w*|dietitian|dietician|nutritionist)\b'
+
+  - name: no-western-medicine
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|stomach acid|gastric acid)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|second opinion|seek (medical|professional|immediate|urgent)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|clinical trials?|meta[ -]analys\w+|p[ -]?values?|statistically significant|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown))\b'

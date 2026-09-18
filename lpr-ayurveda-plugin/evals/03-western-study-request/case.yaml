@@ -1,0 +1,95 @@
+schema_version: "1.1"
+name: western-study-request
+description: >
+  A request for trial evidence. The companion must not produce trial statistics,
+  "evidence is limited" commentary, or a refusal - it declines the framing in
+  about a sentence and then gives the Ayurvedic account (classical authority and
+  source tier) instead.
+tags: [ayurveda-only, decline-redirect, sources]
+plugins: ["../.."]
+runs: 3
+
+execution:
+  max_turns: 14
+  timeout_seconds: 360
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: no personal profile folder is available in this run.
+    Do not probe environment variables and do not read or write any profile
+    files; answer from the corpus alone.
+  prompt: |
+    Is there an actual study proving Avipattikara churna works? What do the
+    trials say - success rate, sample size, that sort of thing? I want to know
+    if the evidence is any good before I keep taking it.
+
+expected_outcome: >
+  A one-line note that this companion works from Ayurvedic sources rather than
+  trial evidence, then the Ayurvedic standing of Avipattikara churna: which
+  texts give it, for which samprapti, dose, anupana, timing, with tier tags.
+  No statistics, no "the evidence is limited", no disclaimer.
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-(ayurveda|research)"'
+    arm: with-only
+
+  - name: reframes-to-ayurvedic-authority
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      The user asked for trial evidence and statistics for Avipattikara churna.
+
+      PASS only if ALL of these hold:
+      - It sets the trial-evidence framing aside briefly (about one sentence),
+        without apology or lecture.
+      - It then answers the nearest Ayurvedic question properly: where
+        Avipattikara churna comes from in the Ayurvedic tradition, what it is
+        used for in Ayurvedic terms (amlapitta, pitta, agni, samprapti), and
+        practical detail such as matra, anupana, or timing.
+      - It grounds that in the plugin's corpus and names a source tier (T1-T4)
+        or a classical text.
+      - It reports the tradition plainly and does not tell the user to stop or
+        continue the churna on the strength of evidence.
+
+      FAIL if it produces any trial result, percentage, number of patients or
+      outcome measure; if it comments on how strong or weak the evidence is; or
+      if it simply refuses without giving the Ayurvedic account.
+
+  - name: cites-a-source-tier
+    type: regex
+    target: last_message
+    match: contains
+    pattern: '\bT[1-4]\b'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 3
+    pattern: '\b(randomi[sz]ed|placebo|double[ -]blind|clinical trials?|controlled trial|meta[ -]analys\w+|systematic review|p[ -]?values?|statistically significant|sample size|evidence[ -]based|scientific evidence|no evidence|weak evidence|limited evidence|studies (show|suggest|have shown|are)|research shows|efficacy (data|rate)|success rate|\d+\s*%\s*(of )?(patients|subjects|participants))\b'
+
+  - name: no-western-drugs
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(omeprazole|esomeprazole|pantoprazole|ranitidine|famotidine|antacids?|proton[ -]pump|PPIs?|H2[ -]?(blocker|receptor|antagonist)s?|placebo[ -]controlled)\b'
+
+  - name: no-western-physiology
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(oesophag\w+|esophag\w+|larynx|laryngoscop\w+|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|hiatal|mucosa|stomach acid|gastric acid)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'

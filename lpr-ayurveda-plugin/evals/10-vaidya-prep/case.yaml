@@ -1,0 +1,109 @@
+schema_version: "1.1"
+name: vaidya-prep
+description: >
+  The vaidya visit preparation. Proves the one-page summary is actually written
+  to profile/vaidya-visits/, that it carries the trend, adherence, observations,
+  prioritised questions and the permission-to-ask items, and that it speaks the
+  vaidya's language rather than a Western one.
+tags: [vaidya, profile, reporting]
+plugins: ["../.."]
+runs: 2
+
+context:
+  scaffold_script: fixture.sh
+
+execution:
+  max_turns: 24
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Edit, Write]
+  append_system_prompt: >-
+    Evaluation environment: the LPR profile directory for this session is the
+    `profile/` folder inside the current working directory. Treat it exactly as
+    you would treat $LPR_PROFILE_DIR. Do not probe environment variables and do
+    not read or write any profile outside that folder.
+  prompt: |
+    I'm seeing Vaidya S. on the 2nd. Can you get my visit summary ready?
+
+expected_outcome: >
+  A new profile/vaidya-visits/YYYY-MM-DD-prep.md holding, in order: the one-line
+  picture, a trend table since the last visit, adherence per prescribed item,
+  dated observations, prioritised questions, and items to ask permission for
+  (nasya was mentioned by the vaidya; gandusha is an open question).
+
+graders:
+  - name: prep-skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-vaidya-prep"'
+    arm: with-only
+
+  - name: prep-page-written
+    type: file_exists
+    path: 'profile/vaidya-visits/*prep*.md'
+    weight: 3
+
+  - name: reads-the-vaidya-plan
+    type: tool_used
+    tool: Read
+    input_match: 'vaidya-plan'
+    min: 1
+    arm: with-only
+
+  - name: page-has-the-required-sections
+    type: llm
+    focus: trace
+    weight: 3
+    criteria: |
+      Look at the visit-preparation page the agent wrote into
+      profile/vaidya-visits/.
+
+      PASS only if it contains ALL of these, recognisably:
+      - A one-line picture: prakriti, current dominant vikriti, agni, koshtha,
+        ritu.
+      - A trend of the lakshanas since the last visit (grades, best/worst days,
+        or flares with the nidana found).
+      - Adherence for each item in the vaidya's plan (Avipattikara churna,
+        Yashtimadhu ghana vati, Shatavari ghrita) including timing or anupana
+        problems where relevant.
+      - Dated observations worth the vaidya's attention.
+      - A prioritised list of questions, each one line, each with why it
+        matters.
+      - Items to ask permission for - anything rasaushadhi, panchakarma or a new
+        formulation (the vaidya mentioned considering nasya).
+
+      FAIL if the page was not written, or if two or more of those sections are
+      missing.
+
+  - name: reads-in-two-minutes
+    type: llm
+    focus: last_message
+    weight: 2
+    criteria: |
+      PASS if the reply presents the page to the user compactly - a page a busy
+      vaidya could read in about two minutes, with at most about seven questions
+      - and offers a shorter five-line version for a very short visit.
+      FAIL if it produces several pages of prose, buries the questions, or never
+      shows the user what was written.
+
+  - name: no-western-terms
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 3
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|gastroscop\w+|pepsin|sphincter|GERD|GORD|hiatal|mucosa|stomach acid|gastric acid|reflux symptom index|differential diagnosis|red flags?|vital signs|BMI\b)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|clinical trials?|meta[ -]analys\w+|p[ -]?values?|statistically significant|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown))\b'

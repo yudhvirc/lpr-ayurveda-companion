@@ -1,0 +1,11 @@
+# Personal records are never tracked. The plugin seeds its own profile folder
+# on first run (see README, "Your records stay yours"), so nothing personal
+# needs to live here. This directory is present only for local development.
+profile/
+
+# Eval reports: large HTML, regenerated on every run
+lpr-ayurveda-plugin/evals/results/
+
+# OS noise
+Thumbs.db
+desktop.ini

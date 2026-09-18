@@ -1,0 +1,156 @@
+schema_version: "1.1"
+name: pathya-food
+description: >
+  A practical food question that can only be answered from the pathya-apathya
+  material (corpus file 03). Proves rasa / guna / virya / vipaka reasoning, the
+  eating rules, and a clear verdict - with no Western nutrition anywhere.
+tags: [ahara, pathya, corpus]
+plugins: ["../.."]
+runs: 2
+
+execution:
+  max_turns: 16
+  timeout_seconds: 420
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: no personal profile folder is available in this run.
+    Do not probe environment variables and do not read or write any profile
+    files; answer from the corpus alone.
+  prompt: |
+    Lunch at the office tomorrow is either a fermented dosa plate or khichdi with
+    buttermilk. Which is better for my throat burning, and is there anything I
+    should change about how I eat it?
+
+expected_outcome: >
+  Khichdi with takra chosen, argued from rasa / guna / virya / vipaka and from
+  the apathya status of fermented food, plus the eating rules (matra, warm,
+  unhurried, not lying down after, what to drink), cited to corpus 03 with a
+  source tier.
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-ayurveda"'
+    arm: with-only
+
+  - name: reads-the-ahara-corpus
+    type: tool_used
+    tool: Read
+    input_match: 'corpus'
+    min: 1
+    arm: with-only
+
+  - name: cites-a-corpus-file
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    weight: 2
+    pattern: 'corpus[\s/]*0*[1-7]'
+
+  - name: cites-a-source-tier
+    type: regex
+    target: last_message
+    match: contains
+    pattern: '\bT[1-4]\b'
+
+  - name: pathya-apathya-reasoning
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      PASS only if ALL of these hold:
+      - It gives a clear verdict on which of the two lunches is better, rather
+        than listing both neutrally.
+      - The argument runs in pathya / apathya terms and uses the dravya-guna
+        vocabulary: rasa, guna, virya, vipaka, and the effect on pitta, kapha,
+        agni or ama. Fermented food being apathya, and takra (buttermilk) being
+        pathya when churned and thin, are the kind of points expected.
+      - It answers the "how I eat it" half too, with concrete eating rules -
+        quantity (matra), warmth, timing, not lying down afterwards, what to
+        drink with the meal, or similar.
+      - It cites the plugin's corpus and a source tier.
+
+      FAIL if it reasons in calories, acidity, fibre, protein, fat, trigger
+      foods, or any other Western nutritional frame; if it gives no verdict; or
+      if it cites nothing.
+
+  - name: sanskrit-then-gloss
+    type: llm
+    focus: last_message
+    criteria: |
+      The skill's Style rule reads: "Sanskrit term first, English gloss in
+      parentheses on first use, for example 'kantha daha (burning in the
+      throat)'. After that, either is fine." Test that rule and nothing else.
+      Do not judge density, tone, or whether the answer feels approachable.
+
+      STEP 1 - ORDERING. Find every place where a Sanskrit term and its English
+      meaning stand together. Each must run Sanskrit first: "takra (thin churned
+      buttermilk)", "matra (quantity)". English first with the Sanskrit in
+      brackets - "buttermilk (takra)", "quantity (matra)" - is a violation, and
+      counts the same in a heading, a table cell or a list item.
+
+      STEP 2 - GLOSS ON FIRST USE. Go through the answer once and list every
+      Sanskrit term that carries real meaning and appears for the FIRST time
+      with no English rendering attached. A rendering counts wherever it sits -
+      in parentheses, as an appositive, or in the same sentence: "mudga (green
+      gram)" and "paryushita - stale or reheated" are both glossed; "it is
+      vidahi and abhishyandi" is not.
+
+      Do not count and do not list:
+      - quoted Sanskrit verse or sutra text, and transliterated quotations;
+      - citation tags such as `[corpus 03 §1a, T1 KS.Khila 16/38]`;
+      - proper names - texts, authors, the user's vaidya, and named dravyas or
+        classical formulations (Kashyapa, Charaka, khichdi, Triphala);
+      - these six shared frame words, which the user already lives in:
+        Ayurveda/Ayurvedic, vaidya, dosha, vata, pitta, kapha;
+      - any term glossed earlier in this same answer and later used bare;
+      - a term glossed inside a phrase gloss: "kantha daha (burning in the
+        throat)" glosses kantha and daha both, and "rasa (taste) is madhura
+        (sweet)" glosses each part;
+      - a compound or hyphenated pair built only from parts already glossed in
+        this answer - if madhura, sheeta, guru and snigdha are each glossed,
+        then madhura-sheeta, sheeta-madhura and guru-snigdha need no new gloss.
+
+      SAMPLE, do not sweep. Enumerating every term across a long answer is
+      unreliable, so judge a bounded sample: take the FIRST TEN Sanskrit terms
+      that appear in the answer, reading top to bottom and skipping the
+      exempt categories above. Count how many of those ten are unglossed on
+      first use. If the answer holds fewer than ten countable terms, judge all
+      of them.
+
+      VERDICT. PASS only if STEP 1 found no ordering violation AND at most two
+      of that sample of ten are unglossed. FAIL otherwise. Name the offending
+      terms and say which of the ten you counted, so the verdict is checkable.
+
+  - name: no-western-nutrition
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 3
+    pattern: '\b(calorie\w*|kcal|protein|carbohydrate\w*|fibre|fiber|fat content|saturated|probiotics?|lactose|gluten|pH (level|balance)|alkaline|acidic food|trigger foods?|nutrients?|nutrition(al)?|gut (health|bacteria|flora)|microbiome|digestive enzymes?)\b'
+
+  - name: no-western-medicine
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|stomach acid|gastric acid)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|dietitian|dietician|nutritionist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|clinical trials?|meta[ -]analys\w+|p[ -]?values?|statistically significant|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown))\b'

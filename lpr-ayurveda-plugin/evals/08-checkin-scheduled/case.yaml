@@ -1,0 +1,138 @@
+schema_version: "1.1"
+name: checkin-scheduled
+description: >
+  The headless morning check-in. Proves the journal entry is actually written,
+  that it holds 3 to 5 questions, and that a kantha question and an agni-or-ama
+  question are always among them.
+tags: [checkin, journal, profile]
+plugins: ["../.."]
+runs: 2
+
+context:
+  scaffold_script: fixture.sh
+
+execution:
+  max_turns: 20
+  timeout_seconds: 480
+  allowed_tools: [Read, Glob, Grep, Skill, Edit, Write]
+  append_system_prompt: >-
+    Evaluation environment: the LPR profile directory for this session is the
+    `profile/` folder inside the current working directory. Treat it exactly as
+    you would treat $LPR_PROFILE_DIR. Do not probe environment variables and do
+    not read or write any profile outside that folder.
+  prompt: |
+    /lpr-ayurveda:lpr-checkin scheduled
+
+expected_outcome: >
+  A new profile/journal/YYYY-MM-DD.md with status pending, 3 to 5 numbered
+  questions each carrying its scale, including one kantha question and one
+  agni-or-ama question, and a single closing line "Questions written to <path>".
+
+graders:
+  # The prompt in this case IS the /lpr-ayurveda:lpr-checkin slash command, so
+  # the check-in skill arrives as the prompt itself and there is no Skill tool
+  # call left to observe. The old `tool_used` assertion here measured slash
+  # command dispatch, not behaviour, and failed every run while every outcome
+  # grader passed. Assert the outcome instead - the journal entry was written
+  # with pending frontmatter - which also keeps this case's core claim covered
+  # by a free grader when the paid judges are skipped.
+  # Case 09 reaches the check-in through ordinary conversation, where the Skill
+  # call IS the behaviour under test; its checkin-skill-fired stays as it is.
+  - name: journal-written-as-pending
+    type: regex
+    target: trace
+    match: contains
+    flags: i
+    pattern: 'status:\s*pending'
+
+  - name: journal-entry-created
+    type: file_exists
+    path: 'profile/journal/*.md'
+    weight: 3
+
+  - name: kantha-question-present
+    type: regex
+    target: trace
+    match: contains
+    flags: i
+    weight: 2
+    pattern: '(kantha|throat (burning|clearing)|hoarse|swarabheda|gala graha|globus|praseka)'
+
+  - name: agni-or-ama-question-present
+    type: regex
+    target: trace
+    match: contains
+    flags: i
+    weight: 2
+    # Kept in step with the same grader in case 09: match the concept, not one
+    # phrasing of it.
+    pattern: '(agni|ama\b|kshudha|hunger|tongue coating|gaurava|heaviness|udgara|belch)'
+
+  - name: three-to-five-questions
+    type: llm
+    focus: trace
+    weight: 3
+    criteria: |
+      Somewhere in this session the agent wrote a daily journal file for today
+      containing a "Questions for today" list.
+
+      PASS only if ALL of these hold:
+      - The list holds between 3 and 5 questions - not 2, not 6 or more.
+      - Each question carries its answer scale or allowed values in brackets,
+        e.g. [0-3] or [yes / partly / no].
+      - At least one question is about the throat (kantha: burning, throat
+        clearing, hoarseness, globus, praseka).
+      - At least one question is about agni or ama (true hunger, tongue coating,
+        post-meal heaviness, sour belching).
+      - The file's frontmatter marks it pending (status: pending) with today's
+        date.
+
+      FAIL if the file was never written, if the count is outside 3-5, or if
+      either the kantha or the agni/ama question is missing.
+
+  - name: scheduled-mode-stays-quiet
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the final message is essentially one line reporting where the
+      questions were written (for example "Questions written to
+      profile/journal/2026-09-18.md"). In scheduled mode the skill must not ask
+      the user anything and must not print advice or a reflection.
+      FAIL if the final message asks the user questions, gives a reflection, or
+      runs to several paragraphs of advice.
+
+  # NOTE: negative graders must never target `trace`. The trace carries the
+  # corpus files the agent read, and the corpus source registers legitimately
+  # quote journal titles containing "GERD", "clinical trial", "randomised" etc.
+  # Keep absence checks on `last_message` or on a specific output file.
+  - name: no-western-terms
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|stomach acid|gastric acid|reflux symptom index)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'
+
+  - name: journal-questions-stay-ayurvedic
+    type: llm
+    focus: trace
+    weight: 2
+    criteria: |
+      Look only at the journal file the agent WROTE (its Write/Edit tool input),
+      not at the corpus files it read. Corpus source registers legitimately
+      quote Western-sounding journal titles; those are not violations.
+
+      PASS if the questions the agent wrote into the journal use only Ayurvedic
+      and plain-English terms (kantha daha, agni, ama, udgara, tongue coating,
+      hunger, sleep, last meal time).
+      FAIL if any question the agent wrote names a Western drug, a Western
+      diagnosis or organ term, a symptom score from Western practice, or adds a
+      "consult a doctor" style line.

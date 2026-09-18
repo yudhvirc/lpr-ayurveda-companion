@@ -1,0 +1,15 @@
+{
+  "name": "lpr-ayurveda",
+  "owner": { "name": "Ace System Design", "email": "info@acesystemdesign.com" },
+  "description": "Marketplace for the LPR Ayurveda companion plugin",
+  "plugins": [
+    {
+      "name": "lpr-ayurveda",
+      "source": "./lpr-ayurveda-plugin",
+      "description": "Ayurveda-only companion for LPR (Urdhvaga Amlapitta): corpus Q&A, daily check-in, personal journal, vaidya-visit prep",
+      "version": "0.2.0",
+      "author": { "name": "Ace System Design" },
+      "defaultEnabled": true
+    }
+  ]
+}

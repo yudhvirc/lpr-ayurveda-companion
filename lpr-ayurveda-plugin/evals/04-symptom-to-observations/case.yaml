@@ -1,0 +1,128 @@
+schema_version: "1.1"
+name: symptom-to-observations
+description: >
+  A durable personal fact revealed in passing. It must end up written into the
+  right profile file (observations.md - a trigger and a symptom pattern), the
+  user must be told in one line, and the answer must stay Ayurvedic.
+tags: [profile, recording, core]
+plugins: ["../.."]
+runs: 2
+
+context:
+  scaffold_script: fixture.sh
+
+execution:
+  max_turns: 20
+  timeout_seconds: 480
+  allowed_tools: [Read, Glob, Grep, Skill, Edit, Write]
+  append_system_prompt: >-
+    Evaluation environment: the LPR profile directory for this session is the
+    `profile/` folder inside the current working directory. Treat it exactly as
+    you would treat $LPR_PROFILE_DIR. Do not probe environment variables and do
+    not read or write any profile outside that folder.
+  prompt: |
+    Something I've noticed over the last three weeks: my throat burns worst
+    about an hour after dinner, and it's far worse on the nights I have a bowl
+    of curd with the meal. Warm water in the morning seems to settle it.
+
+expected_outcome: >
+  observations.md gains dated lines under Triggers (curd at night / late dinner)
+  and Relief patterns (warm water), the user is told in one line what was
+  recorded, and the reply interprets the pattern in Ayurvedic terms.
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-ayurveda"'
+    arm: with-only
+
+  - name: observations-records-the-curd-trigger
+    type: regex
+    weight: 3
+    match: contains
+    flags: i
+    pattern: '(curd|dadhi|yog[hu]urt)'
+    target:
+      source: file
+      path: profile/observations.md
+
+  - name: observations-records-the-timing
+    type: regex
+    weight: 2
+    match: contains
+    flags: i
+    pattern: '(after dinner|hour after|evening meal|late (dinner|meal)|night)'
+    target:
+      source: file
+      path: profile/observations.md
+
+  - name: observations-is-dated
+    type: regex
+    match: contains
+    pattern: '20\d{2}-\d{2}-\d{2}'
+    target:
+      source: file
+      path: profile/observations.md
+
+  - name: no-stray-profile-files
+    type: llm
+    weight: 1
+    focus: files
+    criteria: |
+      This is the list of files the agent created during the run.
+      PASS if every path it created is inside the workspace `profile/` folder
+      (or the list is empty because it only edited existing profile files).
+      FAIL if it created files anywhere else - for example somewhere under a
+      `corpus` directory, at the workspace root, or in a second profile folder.
+
+  - name: recording-is-announced
+    type: llm
+    focus: last_message
+    weight: 2
+    criteria: |
+      PASS if the reply tells the user, in roughly one line, that this was
+      recorded and where (observations / the profile). It must not be silent
+      about the recording, and it must not spend a paragraph on it.
+      FAIL if there is no mention of recording, or if it asks permission instead
+      of recording, or if it claims to have written somewhere other than the
+      observations file.
+
+  - name: ayurvedic-reading-of-the-pattern
+    type: llm
+    focus: last_message
+    weight: 2
+    criteria: |
+      PASS if the reply interprets the pattern in Ayurvedic terms - for example
+      dadhi as amla-vipaka / ushna / abhishyandi, late food and mandagni, ama,
+      kapha avarana, urdhvaga movement of pitta - and cites the plugin's corpus
+      with a source tier. It should read as a companion noticing a pattern, not
+      as a warning.
+      FAIL if it merely repeats what the user said, gives no Ayurvedic reading,
+      or cites nothing.
+
+  - name: no-moralising
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the reply reports what the tradition says without scolding,
+      warning, or telling the user off for eating curd at night. Naming curd as
+      apathya (to be avoided) is fine; disapproval of the user is not.
+      FAIL if it moralises, expresses concern about the user's choices, or
+      urges them to "be careful".
+
+  - name: no-western-terms
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '\b(omeprazole|antacids?|proton[ -]pump|PPIs?|H2[ -]?blockers?|probiotics?|oesophag\w+|esophag\w+|larynx|pharynx|endoscop\w+|pepsin|sphincter|GERD|GORD|mucosa|stomach acid|gastric acid|lactose intoleran\w+|acid reflux disease)\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)'

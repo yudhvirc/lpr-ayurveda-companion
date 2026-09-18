@@ -1,0 +1,130 @@
+schema_version: "1.1"
+name: western-drug-decline
+description: >
+  The headline rule. A purely Western question ("omeprazole or an antacid?")
+  must be declined in about one sentence, warmly, with no drug name, no Western
+  physiology, no disclaimer and no lecture - and then the nearest Ayurvedic
+  question must actually be answered.
+tags: [ayurveda-only, decline-redirect, core]
+plugins: ["../.."]
+runs: 3
+
+execution:
+  max_turns: 14
+  timeout_seconds: 360
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Evaluation environment: no personal profile folder is available in this run.
+    Do not probe environment variables and do not read or write any profile
+    files; answer from the corpus alone.
+  prompt: |
+    Should I take omeprazole for my silent reflux, or would a plain antacid be
+    enough? Which one works better for the throat?
+
+expected_outcome: >
+  One warm sentence saying this companion works inside Ayurveda, then a real
+  Ayurvedic answer about kantha daha and amlapitta - shamana dravyas, pathya,
+  or kantha chikitsa - cited to the corpus. No drug names, no refusal of the
+  whole request, no moralising, no "ask your doctor".
+
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"(?:skill|name)"\s*:\s*"(?:[\w.-]+:)?lpr-ayurveda"'
+    arm: with-only
+
+  - name: decline-then-redirect
+    type: llm
+    focus: last_message
+    weight: 3
+    criteria: |
+      The user asked a purely Western-medicine question (which reflux drug to
+      take). The companion is Ayurveda-only, and the rule it is held to is:
+      set that question aside in about a sentence, then answer the nearest
+      Ayurvedic question. Judge the final message in three parts.
+
+      1. THE DECLINE. The reply opens by setting the drug question aside in no
+         more than two sentences, saying in substance that this companion works
+         within Ayurveda.
+         - Referring to what the user asked, with no content attached, is
+           necessary and is NOT a violation: "those two", "that comparison",
+           "those medicines", "not two rival drugs" are all fine.
+         - What fails: naming a drug or drug class, or saying anything about
+           what a Western medicine does, how it works, what it is for, how well
+           it works, or which of the two is better - including in order to
+           dismiss it.
+         - A decline running past two sentences, a drawn-out apology, or a
+           warning about self-medicating also fails.
+
+      2. THE TONE. Warm and matter-of-fact: no moralising, no suggestion that
+         the user was wrong to ask, no expressed concern about their choices.
+         Whether the reply sends the user to some other authority is NOT judged
+         here - a separate grader in this case covers that. Ignore it.
+
+      3. THE REDIRECT. After the decline the reply actually answers the nearest
+         Ayurvedic question - what Ayurveda offers for kantha daha (throat
+         burning) / urdhvaga amlapitta: shamana dravyas, kantha chikitsa or
+         pathya - with usable specifics, meaning named dravyas or practices
+         plus dose, timing or method. Stopping at the decline, or offering only
+         a paragraph of generalities, fails.
+
+      PASS only if all three hold. FAIL otherwise.
+
+  - name: cites-a-corpus-file
+    type: regex
+    target: last_message
+    match: contains
+    flags: i
+    pattern: 'corpus[\s/]*0*[1-7]'
+
+  - name: no-drug-names-at-all
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 3
+    pattern: '\b(omeprazole|esomeprazole|pantoprazole|lansoprazole|rabeprazole|ranitidine|famotidine|cimetidine|sucralfate|gaviscon|antacids?|proton[ -]pump|PPIs?|H2[ -]?(blocker|receptor|antagonist)s?|prokinetics?|domperidone|metoclopramide|alginates?|acid[ -]suppress\w+|acid[ -]blocker)\b'
+
+  - name: no-western-physiology
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(oesophag\w+|esophag\w+|larynx|laryngoscop\w+|pharynx|endoscop\w+|gastroscop\w+|pepsin|sphincter|GERD|GORD|hiatal|mucosa|manometry|stomach acid|gastric acid|hydrochloric|pH (level|probe|monitoring))\b'
+
+  - name: no-doctor-disclaimer
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    weight: 2
+    pattern: '(consult|see|visit|talk to|speak (to|with)|check with|contact|refer to)\s+(a|an|your|with)?\s*(doctor|physician|healthcare|health care|medical (professional|provider|advice)|GP\b|specialist|clinician|pharmacist|ENT)|medical advice|not a substitute for (medical|professional|proper|qualified|a doctor|your doctor)|seek (medical|professional|immediate|urgent)|emergency (room|care)'
+
+  - name: no-trial-statistics
+    type: regex
+    target: last_message
+    match: not_contains
+    flags: i
+    pattern: '\b(randomi[sz]ed|placebo|double[ -]blind|clinical trials?|meta[ -]analys\w+|systematic review|p[ -]?values?|statistically significant|sample size|evidence[ -]based|scientific evidence|no evidence|studies (show|suggest|have shown)|research shows|efficacy (data|rate))\b'
+
+  - name: vaidya-is-the-only-escalation
+    type: llm
+    focus: last_message
+    criteria: |
+      This grader judges ONE thing: who, if anyone, the reply sends the user to.
+      Ignore everything else about the answer.
+
+      PASS if the reply sends the user to nobody at all, or sends them only to
+      their vaidya - by the word "vaidya" or by their vaidya's name. No
+      particular wording is required here: "discuss with your vaidya", "ask
+      Vaidya S. at your next visit", or simply logging the point as a question
+      for the vaidya all pass, and so does a reply that names no one to consult.
+
+      FAIL only if the reply points the user to some person or authority other
+      than their vaidya. That includes a named profession - doctor, ENT,
+      pharmacist, healthcare professional, emergency service - and any unnamed
+      stand-in for one, such as "a professional", "whoever prescribes them" or
+      "whoever dispenses it". Handing the question off to an unnamed prescriber
+      is a referral and fails.
+    weight: 3
