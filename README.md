@@ -122,6 +122,12 @@ removed.
 - **Head-of-bed elevation has no classical basis.** An early answer suggested it; the corpus now says
   plainly that it is a practitioner convention, not tradition.
 
+## Licence
+
+MIT. See [`LICENSE`](LICENSE). The corpus quotes and paraphrases classical Ayurvedic texts that are
+long out of copyright, and cites every source it draws on; the licence covers this compilation and
+the plugin code, not the underlying traditional knowledge.
+
 ## What this is
 
 This treats Ayurveda as a working system on its own terms, by design. It is a companion to a
